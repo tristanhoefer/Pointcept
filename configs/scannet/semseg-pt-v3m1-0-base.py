@@ -1,11 +1,19 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 12  # bs: total bs in all gpus
+batch_size = 6  # bs: total bs in all gpus
 num_worker = 24
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
+
+wandb = dict(
+    use_wandb=True,
+    project="3d-transformer",
+    entity="tristanhoefer",
+    group=None,
+    id="0411-2024",
+)
 
 # model settings
 model = dict(

@@ -12,12 +12,13 @@ import torch
 import torch.nn as nn
 import torch.utils.data
 from functools import partial
+import datetime
 
 if sys.version_info >= (3, 10):
     from collections.abc import Iterator
 else:
     from collections import Iterator
-from tensorboardX import SummaryWriter
+#from tensorboardX import SummaryWriter
 
 from .defaults import create_ddp_model, worker_init_fn
 from .hooks import HookBase, build_hooks
@@ -29,6 +30,7 @@ from pointcept.utils.optimizer import build_optimizer
 from pointcept.utils.scheduler import build_scheduler
 from pointcept.utils.events import EventStorage, ExceptionWriter
 from pointcept.utils.registry import Registry
+from pointcept.utils.writer import ExperimentWriter
 
 
 TRAINERS = Registry("trainers")
@@ -44,7 +46,7 @@ class TrainerBase:
         self.comm_info = dict()
         self.data_iterator: Iterator = enumerate([])
         self.storage: EventStorage
-        self.writer: SummaryWriter
+        self.writer: ExperimentWriter
 
     def register_hooks(self, hooks) -> None:
         hooks = build_hooks(hooks)
@@ -231,8 +233,30 @@ class Trainer(TrainerBase):
         return model
 
     def build_writer(self):
-        writer = SummaryWriter(self.cfg.save_path) if comm.is_main_process() else None
-        self.logger.info(f"Tensorboard writer logging dir: {self.cfg.save_path}")
+        if not (self.cfg.wandb and self.cfg.wandb["use_wandb"]):
+            writer = (
+                ExperimentWriter(self.cfg.save_path) if comm.is_main_process() else None
+            )
+        else:
+            #wandb_config = self.cfg.wandb if isinstance(self.cfg.wandb, dict) else self.cfg.wandb.to_dict()
+
+            current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            writer = (
+                ExperimentWriter(
+                    save_path=self.cfg.save_path,
+                    use_tensorboard=True,  # have wandb as additional for now
+                    use_wandb=self.cfg.wandb["use_wandb"],
+                    wandb_project=self.cfg.wandb["project"],
+                    wandb_entity=self.cfg.wandb["entity"],
+                    wandb_config=self.cfg,
+                    wandb_group=self.cfg.wandb["group"],
+                    wandb_name=current_time + self.cfg.save_path,
+                    wandb_id=current_time,
+                )
+                if comm.is_main_process()
+                else None
+            )
+        self.logger.info(f"Experiment writer logging dir: {self.cfg.save_path}")
         return writer
 
     def build_train_loader(self):
