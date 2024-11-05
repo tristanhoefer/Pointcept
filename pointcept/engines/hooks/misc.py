@@ -13,6 +13,7 @@ import time
 import torch
 import torch.utils.data
 from collections import OrderedDict
+import wandb
 
 if sys.version_info >= (3, 10):
     from collections.abc import Sequence
@@ -83,6 +84,9 @@ class InformationWriter(HookBase):
     def before_train(self):
         self.trainer.comm_info["iter_info"] = ""
         self.curr_iter = self.trainer.start_epoch * len(self.trainer.train_loader)
+        if self.trainer.writer is not None:
+            wandb.define_metric("train_batch/*", step_metric="batch_step")
+            wandb.define_metric("train/*", step_metric="epoch_step")
 
     def before_step(self):
         self.curr_iter += 1
@@ -116,14 +120,17 @@ class InformationWriter(HookBase):
         lr = self.trainer.optimizer.state_dict()["param_groups"][0]["lr"]
         self.trainer.comm_info["iter_info"] += "Lr: {lr:.5f}".format(lr=lr)
         self.trainer.logger.info(self.trainer.comm_info["iter_info"])
-        self.trainer.comm_info["iter_info"] = ""  # reset iter info
+        wandb.log({"lr": lr, "batch_step": self.curr_iter}, step=self.curr_iter)
         if self.trainer.writer is not None:
             self.trainer.writer.add_scalar("lr", lr, self.curr_iter)
+            wandb.log({"lr": lr}, step=self.curr_iter)
+
             for key in self.model_output_keys:
                 self.trainer.writer.add_scalar(
                     "train_batch/" + key,
                     self.trainer.storage.history(key).val,
                     self.curr_iter,
+                    x_axis_tag="batch_step",
                 )
 
     def after_epoch(self):
@@ -135,11 +142,10 @@ class InformationWriter(HookBase):
         self.trainer.logger.info(epoch_info)
         if self.trainer.writer is not None:
             for key in self.model_output_keys:
-                self.trainer.writer.add_scalar(
-                    "train/" + key,
-                    self.trainer.storage.history(key).avg,
-                    self.trainer.epoch + 1,
-                )
+                self.trainer.writer.add_scalar("train/" + key, self.trainer.storage.history(key).avg, self.trainer.epoch + 1, "epoch_step")
+                #wandb.log({"train/" + key: self.trainer.storage.history(key).avg, "epoch_step": self.trainer.epoch+1}, step=self.trainer.epoch+1)
+                #wandb.log({"train/" + key: self.trainer.storage.history(key).avg}, step=self.trainer.epoch)
+
 
 
 @HOOKS.register_module()

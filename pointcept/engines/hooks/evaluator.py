@@ -88,10 +88,10 @@ class ClsEvaluator(HookBase):
             )
         current_epoch = self.trainer.epoch + 1
         if self.trainer.writer is not None:
-            self.trainer.writer.add_scalar("val/loss", loss_avg, current_epoch)
-            self.trainer.writer.add_scalar("val/mIoU", m_iou, current_epoch)
-            self.trainer.writer.add_scalar("val/mAcc", m_acc, current_epoch)
-            self.trainer.writer.add_scalar("val/allAcc", all_acc, current_epoch)
+            self.trainer.writer.add_scalar("val/loss", loss_avg, current_epoch, x_axis_tag="epoch_step")
+            self.trainer.writer.add_scalar("val/mIoU", m_iou, current_epoch, x_axis_tag="epoch_step")
+            self.trainer.writer.add_scalar("val/mAcc", m_acc, current_epoch, x_axis_tag="epoch_step")
+            self.trainer.writer.add_scalar("val/allAcc", all_acc, current_epoch, x_axis_tag="epoch_step")
         self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
         self.trainer.comm_info["current_metric_value"] = all_acc  # save for saver
         self.trainer.comm_info["current_metric_name"] = "allAcc"  # save for saver
@@ -176,6 +176,11 @@ class SemSegEvaluator(HookBase):
                 m_iou, m_acc, all_acc
             )
         )
+        self.trainer.writer.add_scalar("val/loss", loss_avg, self.trainer.epoch + 1, x_axis_tag="epoch_step")
+        self.trainer.writer.add_scalar("val/mIoU", m_iou, self.trainer.epoch + 1, x_axis_tag="epoch_step")
+        self.trainer.writer.add_scalar("val/mAcc", m_acc, self.trainer.epoch + 1, x_axis_tag="epoch_step")
+        self.trainer.writer.add_scalar("val/allAcc", all_acc, self.trainer.epoch + 1, x_axis_tag="epoch_step")
+
         for i in range(self.trainer.cfg.data.num_classes):
             self.trainer.logger.info(
                 "Class_{idx}-{name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}".format(
@@ -187,10 +192,10 @@ class SemSegEvaluator(HookBase):
             )
         current_epoch = self.trainer.epoch + 1
         if self.trainer.writer is not None:
-            self.trainer.writer.add_scalar("val/loss", loss_avg, current_epoch)
-            self.trainer.writer.add_scalar("val/mIoU", m_iou, current_epoch)
-            self.trainer.writer.add_scalar("val/mAcc", m_acc, current_epoch)
-            self.trainer.writer.add_scalar("val/allAcc", all_acc, current_epoch)
+            self.trainer.writer.add_scalar("val/loss", loss_avg, current_epoch, x_axis_tag="epoch_step")
+            self.trainer.writer.add_scalar("val/mIoU", m_iou, current_epoch, x_axis_tag="epoch_step")
+            self.trainer.writer.add_scalar("val/mAcc", m_acc, current_epoch, x_axis_tag="epoch_step")
+            self.trainer.writer.add_scalar("val/allAcc", all_acc, current_epoch, x_axis_tag="epoch_step")
         self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
         self.trainer.comm_info["current_metric_value"] = m_iou  # save for saver
         self.trainer.comm_info["current_metric_name"] = "mIoU"  # save for saver
@@ -572,10 +577,10 @@ class InsSegEvaluator(HookBase):
             )
         current_epoch = self.trainer.epoch + 1
         if self.trainer.writer is not None:
-            self.trainer.writer.add_scalar("val/loss", loss_avg, current_epoch)
-            self.trainer.writer.add_scalar("val/mAP", all_ap, current_epoch)
-            self.trainer.writer.add_scalar("val/AP50", all_ap_50, current_epoch)
-            self.trainer.writer.add_scalar("val/AP25", all_ap_25, current_epoch)
+            self.trainer.writer.add_scalar("val/loss", loss_avg, current_epoch, x_axis_tag="epoch_step")
+            self.trainer.writer.add_scalar("val/mAP", all_ap, current_epoch, x_axis_tag="epoch_step")
+            self.trainer.writer.add_scalar("val/AP50", all_ap_50, current_epoch, x_axis_tag="epoch_step")
+            self.trainer.writer.add_scalar("val/AP25", all_ap_25, current_epoch, x_axis_tag="epoch_step")
         self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
         self.trainer.comm_info["current_metric_value"] = all_ap_50  # save for saver
         self.trainer.comm_info["current_metric_name"] = "AP50"  # save for saver

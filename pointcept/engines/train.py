@@ -12,7 +12,6 @@ import torch
 import torch.nn as nn
 import torch.utils.data
 from functools import partial
-import datetime
 
 if sys.version_info >= (3, 10):
     from collections.abc import Iterator
@@ -238,9 +237,7 @@ class Trainer(TrainerBase):
                 ExperimentWriter(self.cfg.save_path) if comm.is_main_process() else None
             )
         else:
-            #wandb_config = self.cfg.wandb if isinstance(self.cfg.wandb, dict) else self.cfg.wandb.to_dict()
 
-            current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
             writer = (
                 ExperimentWriter(
                     save_path=self.cfg.save_path,
@@ -250,8 +247,8 @@ class Trainer(TrainerBase):
                     wandb_entity=self.cfg.wandb["entity"],
                     wandb_config=self.cfg,
                     wandb_group=self.cfg.wandb["group"],
-                    wandb_name=current_time + self.cfg.save_path,
-                    wandb_id=current_time,
+                    wandb_name=None,
+                    wandb_id=None,
                 )
                 if comm.is_main_process()
                 else None

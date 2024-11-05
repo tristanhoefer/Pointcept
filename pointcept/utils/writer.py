@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Union
+import datetime
 from tensorboardX import SummaryWriter
 
 from pointcept.utils.config import Config
@@ -41,6 +42,8 @@ class ExperimentWriter(object):
         if isinstance(wandb_config, Config):
                     wandb_config = wandb_config.to_dict()  # Make sure Config object is serializable
 
+        current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+
         self.wandb = None
         if use_wandb:
             try:
@@ -52,10 +55,17 @@ class ExperimentWriter(object):
                     entity=wandb_entity,
                     config=wandb_config,
                     group=wandb_group,
-                    name=wandb_name if wandb_name else Path(save_path).name,
+                    name=wandb_name if wandb_name else Path(save_path).name + current_time,
                     dir=save_path,
-                    id=wandb_id,
+                    id=current_time,
                 )
+                wandb.define_metric("batch_step")
+                wandb.define_metric("epoch_step")
+                wandb.define_metric("train_batch/*", step_metric="batch_step")
+                wandb.define_metric("train/*", step_metric="epoch_step")
+                wandb.define_metric("val_batch/*", step_metric="batch_step")
+                wandb.define_metric("val/*", step_metric="epoch_step")
+
                 self.wandb = wandb
             except ImportError:
                 raise Exception("Tried to use wandb logger but wandb is not installed.")
@@ -64,9 +74,9 @@ class ExperimentWriter(object):
         if use_tensorboard:
             self.tb_writer = SummaryWriter(save_path)
 
-    def add_scalar(self, tag: str, val: float, step: float = None):
+    def add_scalar(self, tag: str, val: float, step: float = None, x_axis_tag: str = None):
         if self.wandb:
-            self.wandb.log({tag: val}, step=step)
+            self.wandb.log({tag: val, x_axis_tag: step}, step=step)
         if self.tb_writer:
             self.tb_writer.add_scalar(tag, val, step)
 
