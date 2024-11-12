@@ -84,9 +84,18 @@ class InformationWriter(HookBase):
     def before_train(self):
         self.trainer.comm_info["iter_info"] = ""
         self.curr_iter = self.trainer.start_epoch * len(self.trainer.train_loader)
-        if self.trainer.writer is not None:
-            wandb.define_metric("train_batch/*", step_metric="batch_step")
-            wandb.define_metric("train/*", step_metric="epoch_step")
+        #if self.trainer.writer is not None:
+        wandb.define_metric("val_loss", step_metric="epoch")
+        wandb.define_metric("val_mIoU", step_metric="epoch")
+        wandb.define_metric("val_mAcc", step_metric="epoch")
+        wandb.define_metric("val_allAcc", step_metric="epoch")
+        wandb.define_metric("val_allAcc", step_metric="epoch")
+        wandb.define_metric("lr")
+        wandb.define_metric("train_batch")
+        wandb.define_metric("train")
+    
+
+
 
     def before_step(self):
         self.curr_iter += 1
@@ -120,7 +129,7 @@ class InformationWriter(HookBase):
         lr = self.trainer.optimizer.state_dict()["param_groups"][0]["lr"]
         self.trainer.comm_info["iter_info"] += "Lr: {lr:.5f}".format(lr=lr)
         self.trainer.logger.info(self.trainer.comm_info["iter_info"])
-        wandb.log({"lr": lr, "batch_step": self.curr_iter}, step=self.curr_iter)
+        #wandb.log({"train/lr": lr, "batch_step": self.curr_iter}, step=self.curr_iter)
         if self.trainer.writer is not None:
             self.trainer.writer.add_scalar("lr", lr, self.curr_iter)
             wandb.log({"lr": lr}, step=self.curr_iter)

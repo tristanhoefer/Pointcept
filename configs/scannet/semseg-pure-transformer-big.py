@@ -1,7 +1,7 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 48  # bs: total bs in all gpus
+batch_size = 4  # bs: total bs in all gpus
 num_worker = 24
 mix_prob = 0.8 #0.8
 empty_cache = False
@@ -21,13 +21,13 @@ model = dict(
     num_classes=20,
     backbone_out_channels=64,
     backbone=dict(
-        type="PureTransformer-Base",
+        type="PureTransformer-Big",
         #num_points=1024,
         in_channels=6, #features dimension of 6?
         num_classes=20,
-        embed_dim=64,
-        depth=2,
-        num_heads=4,
+        embed_dim=(64, 128, 256),
+        enc_depths=(2, 2, 6),
+        num_heads=(4, 8, 16),
         mlp_ratio=24,
         drop=0.2,
         drop_path=0.3,

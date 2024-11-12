@@ -10,6 +10,7 @@ from .stratified_transformer import *
 from .spvcnn import *
 from .octformer import *
 from .oacnns import *
+from .pure_transformer import *
 
 # from .swin3d import *
 

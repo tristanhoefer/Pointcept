@@ -1,4 +1,4 @@
-name: pointcept-cu12.1
+name: pointcept-2.0
 channels:
   - pyg
   - pytorch
@@ -9,7 +9,7 @@ channels:
   - defaults
 dependencies:
   - python=3.10
-  - pip
+  - pipc
   - cuda
   - conda-forge::cudnn
   - gcc=12.1
@@ -22,6 +22,7 @@ dependencies:
   - google-sparsehash
   - h5py
   - pyyaml
+  - sharedarray
   - tensorboard
   - tensorboardx
   - yapf

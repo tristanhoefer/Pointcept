@@ -1,14 +1,12 @@
-from functools import partial
 import torch
 import torch.nn as nn
 from timm.models.layers import DropPath
 import torch.nn.functional as F
 import math
-import spconv.pytorch as spconv
 
 from pointcept.models.builder import MODELS
 from pointcept.models.utils.structure import Point
-from pointcept.models.modules import PointSequential, PointModule
+from pointcept.models.modules import PointSequential
 
 import torch
 import flash_attn
@@ -86,7 +84,8 @@ class Attention(nn.Module):
         x = self.proj(x)
         x = self.proj_drop(x)
         """
-
+        #x = flash_attn.flash_attn_qkvpacked_func(qkv)
+        #x = flash_attn.flash_attn_func(q,k,v)
 
         if q.dtype != torch.float16:
             q = q.to(torch.float16)
@@ -149,111 +148,66 @@ class Block(nn.Module):
         return x
 
 
-
 class Embedding(nn.Module):
-    def __init__(self, in_channels=3, embed_dim=64, norm_layer=None, act_layer=None):
+    def __init__(self, in_channels=3, embed_dim=64):
         super(Embedding, self).__init__()
-        
-        self.proj = nn.Sequential()
-        self.proj.append(nn.Linear(in_channels, embed_dim))
-
-        if norm_layer is not None:
-            self.proj.append(norm_layer(embed_dim))
-        if act_layer is not None:
-            self.proj.append(act_layer())
+        self.proj = nn.Linear(in_channels, embed_dim)
 
     def forward(self, input):
         input = self.proj(input)  # (num_points, embed_dim)
         return input
+    
 
+@MODELS.register_module("PureTransformer-Big")
+class PureTransformerV3_5(nn.Module):
+    def __init__(self,
+                 in_channels=6,
+                 num_classes=20,
+                 embed_dim=(32, 64, 128, 256, 512),
+                 enc_depths=(2, 2, 2, 6, 2),
+                 num_heads=8,
+                 mlp_ratio=4,
+                 drop=0.1,
+                 drop_path=0.3):
         
-"""
-class Embedding(PointModule):
-    def __init__(
-        self,
-        in_channels,
-        embed_channels,
-        norm_layer=None,
-        act_layer=None,
-    ):
-        super().__init__()
-        self.in_channels = in_channels
-        self.embed_channels = embed_channels
-
-        self.stem = nn.Sequential()
-        self.stem.append(spconv.SubMConv3d(
-                in_channels,
-                embed_channels,
-                kernel_size=5,
-                padding=1,
-                bias=False,
-                indice_key="stem",
-            ))
-        
-        if norm_layer is not None:
-            self.stem.append(norm_layer(embed_channels), name="norm")
-        if act_layer is not None:
-            self.stem.append(act_layer(), name="act")
-
-        
-        # TODO: check remove spconv
-        self.stem = PointSequential(
-            conv=spconv.SubMConv3d(
-                in_channels,
-                embed_channels,
-                kernel_size=5,
-                padding=1,
-                bias=False,
-                indice_key="stem",
-            )
-        )
-        if norm_layer is not None:
-            self.stem.add(norm_layer(embed_channels), name="norm")
-        if act_layer is not None:
-            self.stem.add(act_layer(), name="act")
-        
-            
-    def forward(self, point: Point):
-        point = self.stem(point)
-        return point
-"""
-
-@MODELS.register_module("PureTransformer-Base")
-class PureTransformerV3(nn.Module):
-    def __init__(self, in_channels=3, num_classes=20, embed_dim=64, depth=6, num_heads=8, mlp_ratio=4, drop=0.1, drop_path=0.3):
-        super(PureTransformerV3, self).__init__()
-
-
-        bn_layer = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
-        # activation layers
-        act_layer = nn.GELU
-
-        self.embedding = Embedding(in_channels, embed_dim, norm_layer=bn_layer, act_layer=act_layer)
-        #self.embedding = Embedding(in_channels, embed_dim)
+        super(PureTransformerV3_5, self).__init__()
+        self.embedding = Embedding(in_channels, embed_dim[0])
         #self.cls_token = nn.Parameter(torch.zeros(1, embed_dim))
-        self.pos_proj_layer = nn.Linear(3, embed_dim)
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.pos_proj_layer = nn.Linear(3, embed_dim[0])
         self.dropout = nn.Dropout(p=drop)
         self.embed_dim = embed_dim
+        self.num_stages = len(embed_dim)
 
-        self.blocks = nn.ModuleList([
-            Block(embed_dim, num_heads, mlp_ratio, drop, drop_path)
-            for _ in range(depth)
-        ])
-        self.norm = nn.LayerNorm(embed_dim)
-        self.head = nn.Linear(embed_dim, num_classes)
+        self.enc = PointSequential()
+
+        for s in range(self.num_stages):
+            enc = PointSequential()
+
+            if s>0:
+                enc.add(nn.Linear(embed_dim[s-1], embed_dim[s]), name="proj")
+
+            for i in range(enc_depths[s]):
+                enc.add(Block(embed_dim[s], num_heads[s], mlp_ratio, drop, drop_path),
+                    name=f"block{i}",
+                )
+            if len(enc) != 0:
+                self.enc.add(module=enc, name=f"enc{s}")
+
+        self.norm = nn.LayerNorm(embed_dim[0])
+        self.head = nn.Linear(embed_dim[0], num_classes)
         self.drop_path = PointSequential(
             DropPath(0.3) if 0.3 > 0.0 else nn.Identity() #use variable for drop path
         )
+
 
     def forward(self, x):
         point = Point(x) #features are (num_points, 6)
         features = point.feat # [num_points, 6]
         features = self.embedding(features) # [num_points, embed_dim]
 
-        #coords = point.coord # [num_points, 3]
-        #pos_encoding = self.pos_proj_layer(coords) # [num_points, embed_dim]
-        #features = features + pos_encoding # Shape?
+        coords = point.coord # [num_points, 3]
+        pos_encoding = self.pos_proj_layer(coords) # [num_points, embed_dim]
+        features = features + pos_encoding # Shape?
             
         features = self.dropout(features)
 
@@ -264,18 +218,16 @@ class PureTransformerV3(nn.Module):
         max_points_per_batch = max((batch_encoding == b).sum().item() for b in range(batch_size))
 
         # Use -1 for num_points to handle varying number of points per batch
-        batched_features = torch.zeros((batch_size, max_points_per_batch, self.embed_dim), dtype=features.dtype, device=features.device)
+        batched_features = torch.zeros((batch_size, max_points_per_batch, self.embed_dim[0]), dtype=features.dtype, device=features.device)
 
         # Iterate over each batch index to extract and store the corresponding points
         for b in range(batch_size):
             indices = (batch_encoding == b).nonzero(as_tuple=True)[0]
             batched_features[b, :len(indices), :] = features[indices]
-
-        #if batch_size==1:
-        #    batched_features = batched_features.unsqueeze(0)
             
-        for blk in self.blocks:
-            batched_features = blk(batched_features)
+        #for blk in self.blocks:
+        #    batched_features = blk(batched_features)
+        batched_features = self.enc(batched_features)
 
         batched_features = self.norm(features)
 

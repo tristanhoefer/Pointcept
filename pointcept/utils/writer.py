@@ -59,12 +59,6 @@ class ExperimentWriter(object):
                     dir=save_path,
                     id=current_time,
                 )
-                wandb.define_metric("batch_step")
-                wandb.define_metric("epoch_step")
-                wandb.define_metric("train_batch/*", step_metric="batch_step")
-                wandb.define_metric("train/*", step_metric="epoch_step")
-                wandb.define_metric("val_batch/*", step_metric="batch_step")
-                wandb.define_metric("val/*", step_metric="epoch_step")
 
                 self.wandb = wandb
             except ImportError:
@@ -76,7 +70,8 @@ class ExperimentWriter(object):
 
     def add_scalar(self, tag: str, val: float, step: float = None, x_axis_tag: str = None):
         if self.wandb:
-            self.wandb.log({tag: val, x_axis_tag: step}, step=step)
+            #self.wandb.log({tag: val, x_axis_tag: step}, step=step)
+            self.wandb.log({tag: val}, step=step)
         if self.tb_writer:
             self.tb_writer.add_scalar(tag, val, step)
 

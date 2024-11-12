@@ -10,6 +10,7 @@ import torch
 import torch.distributed as dist
 import pointops
 from uuid import uuid4
+import wandb
 
 import pointcept.utils.comm as comm
 from pointcept.utils.misc import intersection_and_union_gpu
@@ -77,6 +78,12 @@ class ClsEvaluator(HookBase):
                 m_iou, m_acc, all_acc
             )
         )
+
+        wandb.log({"val_loss": loss_avg, "epoch": self.trainer.epoch + 1})
+        wandb.log({"val_mIoU": m_iou, "epoch": self.trainer.epoch + 1})
+        wandb.log({"val_mAcc": m_acc, "epoch": self.trainer.epoch + 1})
+        wandb.log({"val_allAcc": all_acc, "epoch": self.trainer.epoch + 1})
+
         for i in range(self.trainer.cfg.data.num_classes):
             self.trainer.logger.info(
                 "Class_{idx}-{name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}".format(
@@ -176,10 +183,15 @@ class SemSegEvaluator(HookBase):
                 m_iou, m_acc, all_acc
             )
         )
-        self.trainer.writer.add_scalar("val/loss", loss_avg, self.trainer.epoch + 1, x_axis_tag="epoch_step")
-        self.trainer.writer.add_scalar("val/mIoU", m_iou, self.trainer.epoch + 1, x_axis_tag="epoch_step")
-        self.trainer.writer.add_scalar("val/mAcc", m_acc, self.trainer.epoch + 1, x_axis_tag="epoch_step")
-        self.trainer.writer.add_scalar("val/allAcc", all_acc, self.trainer.epoch + 1, x_axis_tag="epoch_step")
+        #self.trainer.writer.add_scalar("val/loss", loss_avg, self.trainer.epoch + 1, x_axis_tag="epoch_step")
+        #self.trainer.writer.add_scalar("val/mIoU", m_iou, self.trainer.epoch + 1, x_axis_tag="epoch_step")
+        #self.trainer.writer.add_scalar("val/mAcc", m_acc, self.trainer.epoch + 1, x_axis_tag="epoch_step")
+        #self.trainer.writer.add_scalar("val/allAcc", all_acc, self.trainer.epoch + 1, x_axis_tag="epoch_step")
+        
+        wandb.log({"val_loss": loss_avg, "epoch": self.trainer.epoch + 1})
+        wandb.log({"val_mIoU": m_iou, "epoch": self.trainer.epoch + 1})
+        wandb.log({"val_mAcc": m_acc, "epoch": self.trainer.epoch + 1})
+        wandb.log({"val_allAcc": all_acc, "epoch": self.trainer.epoch + 1})
 
         for i in range(self.trainer.cfg.data.num_classes):
             self.trainer.logger.info(
@@ -581,6 +593,7 @@ class InsSegEvaluator(HookBase):
             self.trainer.writer.add_scalar("val/mAP", all_ap, current_epoch, x_axis_tag="epoch_step")
             self.trainer.writer.add_scalar("val/AP50", all_ap_50, current_epoch, x_axis_tag="epoch_step")
             self.trainer.writer.add_scalar("val/AP25", all_ap_25, current_epoch, x_axis_tag="epoch_step")
+
         self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
         self.trainer.comm_info["current_metric_value"] = all_ap_50  # save for saver
         self.trainer.comm_info["current_metric_name"] = "AP50"  # save for saver
