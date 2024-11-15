@@ -1,7 +1,7 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 48  # bs: total bs in all gpus
+batch_size = 48 # bs: total bs in all gpus
 num_worker = 24
 mix_prob = 0.8 #0.8
 empty_cache = False
@@ -12,7 +12,7 @@ wandb = dict(
     project="3d-transformer",
     entity="tristanhoefer",
     group=None,
-    id="0811-2024",
+    id="1311-2024",
 )
 
 # model settings
@@ -28,8 +28,8 @@ model = dict(
         embed_dim=64,
         depth=2,
         num_heads=4,
-        mlp_ratio=24,
-        drop=0.2,
+        mlp_ratio=4,
+        drop=0.0,
         drop_path=0.3,
     ),
     criteria=[
@@ -105,7 +105,7 @@ data = dict(
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
             dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.05,
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
